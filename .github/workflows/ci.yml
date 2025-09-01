@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck bats jq
+          curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/latest/download/shfmt_linux_amd64
+          chmod +x /usr/local/bin/shfmt
+
+      - name: Check formatting with shfmt
+        run: |
+          # Show diff if formatting is needed; fail the build if so.
+          shfmt -i 2 -ci -d .
+
+      - name: Lint with shellcheck
+        run: |
+          shellcheck bin/r2j
+          shellcheck scripts/install.sh
+
+      - name: Run tests (bats)
+        run: bats -r test
