@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # -------- Config --------
-REPO="${REPO:-yonigofman/r2j}"   # <-- change default to your actual repo
+REPO="${REPO:-"yonigofman/r2j"}"   # <-- change default to your actual repo
 NAME="${NAME:-r2j}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 VERIFY=1
