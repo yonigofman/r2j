@@ -21,5 +21,6 @@ Supports both direct arguments and stdin piping.
 
 ### Manual
 ```bash
-chmod +x r2j
-sudo mv r2j /usr/local/bin/
+sudo curl -fsSL https://raw.githubusercontent.com/yonigofman/r2j/main/bin/r2j -o /usr/local/bin/r2j
+sudo chmod +x /usr/local/bin/r2j
+r2j --help
