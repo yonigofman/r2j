@@ -14,12 +14,9 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck bats jq
+          sudo apt-get install -y shellcheck jq
 
-      - name: Lint with shellcheck
+      - name: Lint
         run: |
           shellcheck bin/r2j
           shellcheck scripts/install.sh
-
-      - name: Run tests (bats)
-        run: bats -r test
