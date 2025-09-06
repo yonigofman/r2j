@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ruby-hash-to-json
 # Convert Ruby-style hash strings into valid JSON
-# Version: 0.1.0
+# Version: 0.1.1
 
 set -euo pipefail
 
@@ -9,12 +9,12 @@ PRETTY=false
 
 usage() {
   cat <<'EOF'
-r2j v0.1.0
+r2j v0.0.3
 Convert Ruby-style hash strings into valid JSON.
 
 USAGE:
-  ruby-hash-to-json [-p|--pretty] [INPUT]
-  echo "{:foo=>'bar'}" | ruby-hash-to-json -p
+  r2j [-p|--pretty] [INPUT]
+  echo "{:foo=>'bar'}" | r2j -p
 
 OPTIONS:
   -p, --pretty   Pretty print JSON (requires jq if installed)
@@ -41,25 +41,26 @@ while [[ $# -gt 0 ]]; do
     *)
       if [[ -z "$input" ]]; then
         input="$1"
+        shift
       else
         echo "Unexpected argument: $1" >&2
         usage
         exit 1
       fi
-      shift
       ;;
   esac
 done
 
 # Read input (from argument or stdin)
-if [[ -n "${input:-}" ]]; then
+if [[ -n "$input" ]]; then
   s="$input"
-else
+elif [[ ! -t 0 ]]; then
+  # stdin is a pipe/file
   s="$(cat)"
+else
+  echo "No input provided. Pass a string or pipe data. Try: echo \"{:foo=>'bar'}\" | r2j -p" >&2
+  exit 1
 fi
-
-# Ruby scalars → JSON
-s="$input"
 
 # Ruby scalars → JSON
 s=$(echo "$s" | sed -E 's/\bnil\b/null/g')
@@ -80,7 +81,6 @@ s=$(echo "$s" | sed -E 's/=>/:/g')
 # Symbol values
 s=$(echo "$s" | sed -E 's/:\s*:"([^"]+)"/: "\1"/g')
 s=$(echo "$s" | sed -E 's/:\s*:([a-zA-Z_][a-zA-Z0-9_]*)/: "\1"/g')
-
 
 # Output
 if $PRETTY && command -v jq >/dev/null 2>&1; then
