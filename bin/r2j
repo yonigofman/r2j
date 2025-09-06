@@ -9,7 +9,7 @@ PRETTY=false
 
 usage() {
   cat <<'EOF'
-ruby-hash-to-json v0.1.0
+r2j v0.1.0
 Convert Ruby-style hash strings into valid JSON.
 
 USAGE:
@@ -59,24 +59,28 @@ else
 fi
 
 # Ruby scalars → JSON
-s=$(echo "$s" | sed -E 's/\\bnil\\b/null/g')
-s=$(echo "$s" | sed -E 's/\\btrue\\b/true/g')
-s=$(echo "$s" | sed -E 's/\\bfalse\\b/false/g')
+s="$input"
+
+# Ruby scalars → JSON
+s=$(echo "$s" | sed -E 's/\bnil\b/null/g')
+s=$(echo "$s" | sed -E 's/\btrue\b/true/g')
+s=$(echo "$s" | sed -E 's/\bfalse\b/false/g')
 
 # Single-quoted Ruby strings → JSON double quotes
-s=$(echo "$s" | sed -E "s/'([^']*)'/\\"\\1\\"/g")
+s=$(echo "$s" | sed -E "s/'([^']*)'/\"\\1\"/g")
 
 # Keys
-s=$(echo "$s" | sed -E 's/([{,\\[])[[:space:]]*:"([^"]+)"[[:space:]]*=>/\\1"\\2":/g')
-s=$(echo "$s" | sed -E 's/([{,\\[])[[:space:]]*:([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=>/\\1"\\2":/g')
-s=$(echo "$s" | sed -E 's/([{,\\[])[[:space:]]*"([^"]+)"[[:space:]]*=>/\\1"\\2":/g')
+s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*:"([^"]+)"[[:space:]]*=>/\1"\2":/g')
+s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*:([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=>/\1"\2":/g')
+s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*"([^"]+)"[[:space:]]*=>/\1"\2":/g')
 
 # Remaining hash rockets → colons
 s=$(echo "$s" | sed -E 's/=>/:/g')
 
 # Symbol values
-s=$(echo "$s" | sed -E 's/:\\s*:"([^"]+)"/: "\\1"/g')
-s=$(echo "$s" | sed -E 's/:\\s*:([a-zA-Z_][a-zA-Z0-9_]*)/: "\\1"/g')
+s=$(echo "$s" | sed -E 's/:\s*:"([^"]+)"/: "\1"/g')
+s=$(echo "$s" | sed -E 's/:\s*:([a-zA-Z_][a-zA-Z0-9_]*)/: "\1"/g')
+
 
 # Output
 if $PRETTY && command -v jq >/dev/null 2>&1; then
