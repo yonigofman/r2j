@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ruby-hash-to-json
 # Convert Ruby-style hash strings into valid JSON
-# Version: 0.1.1
+# Version: 0.1.2
 
 set -euo pipefail
 
@@ -9,20 +9,16 @@ PRETTY=false
 
 usage() {
   cat <<'EOF'
-r2j v0.0.3
+r2j v0.1.2
 Convert Ruby-style hash strings into valid JSON.
 
 USAGE:
   r2j [-p|--pretty] [INPUT]
-  echo "{:foo=>'bar'}" | r2j -p
+  echo "{:foo=>bar}" | r2j -p
 
 OPTIONS:
   -p, --pretty   Pretty print JSON (requires jq if installed)
   -h, --help     Show this help
-
-NOTES:
-- If jq is installed and -p is used, output will be styled via jq.
-- INPUT may be a single-argument string; otherwise stdin is read.
 EOF
 }
 
@@ -33,52 +29,59 @@ while [[ $# -gt 0 ]]; do
     -p|--pretty) PRETTY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; break ;;
-    -*)
-      echo "Unknown option: $1" >&2
-      usage
-      exit 1
-      ;;
+    -*) echo "Unknown option: $1" >&2; usage; exit 1 ;;
     *)
       if [[ -z "$input" ]]; then
-        input="$1"
-        shift
+        input="$1"; shift
       else
-        echo "Unexpected argument: $1" >&2
-        usage
-        exit 1
+        echo "Unexpected argument: $1" >&2; usage; exit 1
       fi
       ;;
   esac
 done
 
-# Read input (from argument or stdin)
+# Read input
 if [[ -n "$input" ]]; then
   s="$input"
 elif [[ ! -t 0 ]]; then
-  # stdin is a pipe/file
   s="$(cat)"
 else
-  echo "No input provided. Pass a string or pipe data. Try: echo \"{:foo=>'bar'}\" | r2j -p" >&2
-  exit 1
+  echo "No input provided." >&2; exit 1
 fi
 
-# Ruby scalars → JSON
-s=$(echo "$s" | sed -E 's/\bnil\b/null/g')
-s=$(echo "$s" | sed -E 's/\btrue\b/true/g')
-s=$(echo "$s" | sed -E 's/\bfalse\b/false/g')
+# ---------------------------------------------------------
+# Transformation Pipeline
+# ---------------------------------------------------------
 
-# Single-quoted Ruby strings → JSON double quotes
+# 1. Normalize Scalars
+s=$(echo "$s" | sed -E 's/\bnil\b/null/g')
+# (We handle true/false normalization later to preserve types against the quoting logic below)
+
+# 2. Quote "Bare Words" (The Fix)
+# Captures any sequence following '=>' that is NOT a structural char (brackets, braces, quotes, comma, colon)
+# This handles: gitlab-org/image, main, @apps, .gitlab-ci.yml
+s=$(echo "$s" | sed -E "s/=>[[:space:]]*([^][{},\"':[:space:]]+)/=> \"\1\"/g")
+
+# 3. Restore Boolean/Null types (Unquote them if they were caught by step 2)
+# We do this specifically to maintain JSON types for booleans/null
+s=$(echo "$s" | sed -E 's/=> "null"/=> null/g')
+s=$(echo "$s" | sed -E 's/=> "true"/=> true/g')
+s=$(echo "$s" | sed -E 's/=> "false"/=> false/g')
+
+# 4. Standardize Single Quotes to Double Quotes
 s=$(echo "$s" | sed -E "s/'([^']*)'/\"\\1\"/g")
 
-# Keys
+# 5. Convert Keys
+# Matches {:key=>, :"key"=>, "key"=>
 s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*:"([^"]+)"[[:space:]]*=>/\1"\2":/g')
 s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*:([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=>/\1"\2":/g')
 s=$(echo "$s" | sed -E 's/([{,\[])[[:space:]]*"([^"]+)"[[:space:]]*=>/\1"\2":/g')
 
-# Remaining hash rockets → colons
+# 6. Convert remaining Hash Rockets to Colons
 s=$(echo "$s" | sed -E 's/=>/:/g')
 
-# Symbol values
+# 7. Convert Symbol Values
+# Matches : "val" (quoted above) or :val (bare symbols)
 s=$(echo "$s" | sed -E 's/:\s*:"([^"]+)"/: "\1"/g')
 s=$(echo "$s" | sed -E 's/:\s*:([a-zA-Z_][a-zA-Z0-9_]*)/: "\1"/g')
 
